@@ -1,20 +1,14 @@
 # #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 # @Time    : 2022/5/3 4:13
-# @Author  : Wang Ziyan
-# @Email   : 1269586767@qq.com
+# @Author  : Wang Ziyan Yijing Liao
 # @File    : lstm.py
 # @Software: PyCharm
 import torch
-import torch
 from pandas import read_csv
 from torch import nn, optim
-
 import numpy as np
-import pandas
-from sklearn.preprocessing import OneHotEncoder, MinMaxScaler
-
-import matplotlib as mpl
+from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
 
 
@@ -171,9 +165,8 @@ if __name__ == '__main__':
     num_layers = 1
     output_size = 1
     train_set, valid_set, origin, t, v = prepare_datasets('monthly-robberies.csv')
-    model = torch.load("a.pkl")
-    #model = LSTM(input_size, hidden_size, num_layers, output_size)
+    # model = torch.load("a.pkl")
+    model = LSTM(input_size, hidden_size, num_layers, output_size)
     model.cuda(0)
-    #train(model, 1000, train_set, lr=0.0005, valid_data=valid_set)
+    train(model, 1000, train_set, lr=0.0005, valid_data=valid_set)
     torch.save(model, "a.pkl")
-    visualize(model, train_set, valid_set, origin, t, v)
