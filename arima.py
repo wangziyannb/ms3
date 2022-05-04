@@ -6,6 +6,7 @@
 # @Email   : ziyan.wang@stonybrook.edu
 # @File    : arima.py
 # @Software: PyCharm
+import concurrent.futures
 
 from pandas import read_csv
 from pandas.plotting import autocorrelation_plot
@@ -14,6 +15,11 @@ from matplotlib import pyplot
 from statsmodels.tsa.arima.model import ARIMA
 from sklearn.metrics import mean_squared_error
 from math import sqrt
+import warnings
+# support multi thread processing
+from concurrent.futures import ProcessPoolExecutor, as_completed
+
+warnings.simplefilter("ignore")
 
 
 def data_info(data):
@@ -60,7 +66,7 @@ def test_params(train, test, p, d, q):
         history.append(obs)
     rmse = sqrt(mean_squared_error(test, predictions))
     # print('Test RMSE: %.3f' % rmse)
-    return rmse, predictions, test_list
+    return rmse, predictions, test_list, (p, d, q)
 
 
 def grid_search_for_best_params(X, size):
@@ -71,17 +77,29 @@ def grid_search_for_best_params(X, size):
     m = {}
     test_list = None
     best_rmse, best_cfg = float("inf"), None
+    pool = ProcessPoolExecutor(max_workers=20)
+    thread_list = []
     for p in p_value:
         for d in d_value:
             for q in q_value:
                 try:
-                    rmse, predictions, test_list = test_params(train, test, p, d, q)
-                    m[(p, d, q)] = {"rmse": rmse, "pred": predictions}
-                    if best_rmse > rmse:
-                        best_rmse = rmse
-                        best_cfg = (p, d, q)
+                    thread_list.append(pool.submit(test_params, train, test, p, d, q))
+                    # rmse, predictions, test_list = test_params(train, test, p, d, q)
                 except:
                     continue
+    print(thread_list)
+    concurrent.futures.wait(thread_list, return_when=concurrent.futures.FIRST_COMPLETED)
+    for f in as_completed(thread_list):
+        try:
+            rmse, predictions, test_list, (p, d, q) = f.result()
+            m[(p, d, q)] = {"rmse": rmse, "pred": predictions}
+            print("job for searching (%d, %d, %d) finished" % (p, d, q))
+            if best_rmse > rmse:
+                best_rmse = rmse
+                best_cfg = (p, d, q)
+        except:
+            continue
+
     print("tried params:")
     print(m)
     print("best params:")
@@ -100,8 +118,8 @@ if __name__ == '__main__':
     # load dataset
     data = read_csv('monthly-robberies.csv', parse_dates=[0], index_col=0).squeeze("columns")
     data.index = data.index.to_period('M')
-    p = data_info(data)
-    model_info(data, p, 1, 0)
+    # p = data_info(data)
+    # model_info(data, p, 1, 0)
     X = data.values
     size = int(len(X) * 0.66)
     grid_search_for_best_params(X, size)
